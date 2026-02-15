@@ -1,6 +1,7 @@
 extern crate sdl2;
 
 use sdl2::event::Event;
+use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -45,6 +46,8 @@ fn main() {
         .video()
         .expect("Couldn't get SDL video subsystem");
 
+    sdl2::image::init(InitFlag::PNG | InitFlag::JPG).expect("Couldn't initialize image context");
+
     let window = video_subsystem
         .window("rust-sdl2 demo: Video", 800, 600)
         .position_centered()
@@ -54,27 +57,14 @@ fn main() {
 
     let mut canvas = window
         .into_canvas()
-        .target_texture()
-        .present_vsync()
         .build()
         .expect("Failed to convert window into canvas");
 
     let texture_creator: TextureCreator<_> = canvas.texture_creator();
 
-    let mut green_square = create_texture_rect(
-        &mut canvas,
-        &texture_creator,
-        TextureColor::Green,
-        TEXTURE_SIZE,
-    )
-    .expect("Failed to create a texture");
-    let mut blue_aquare = create_texture_rect(
-        &mut canvas,
-        &texture_creator,
-        TextureColor::Blue,
-        TEXTURE_SIZE,
-    )
-    .expect("Failed to create texture");
+    let image_texture = texture_creator
+        .load_texture("assets/cursor.png")
+        .expect("Couldn't load image");
 
     let timer = SystemTime::now();
 
@@ -96,23 +86,9 @@ fn main() {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
             canvas.clear();
 
-            let display_green = match timer.elapsed() {
-                Ok(elapsed) => elapsed.as_secs() % 2 == 0,
-                Err(_) => true,
-            };
-            let square_texture = if display_green {
-                &green_square
-            } else {
-                &blue_aquare
-            };
-
             //Copy our canvas into the window
             canvas
-                .copy(
-                    square_texture,
-                    None,
-                    Rect::new(0, 0, TEXTURE_SIZE, TEXTURE_SIZE),
-                )
+                .copy(&image_texture, None, None)
                 .expect("Couldn't copy texture into window");
 
             canvas.present();
