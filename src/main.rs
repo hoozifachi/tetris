@@ -4,11 +4,12 @@ use sdl2::event::Event;
 use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
+use std::fs::File;
+use std::io::{self, Read, Write};
 use std::thread::sleep;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 const TEXTURE_SIZE: u32 = 32;
 
@@ -48,6 +49,12 @@ fn main() {
 
     sdl2::image::init(InitFlag::PNG | InitFlag::JPG).expect("Couldn't initialize image context");
 
+    save_highscores_and_lines(&[500], &[10]);
+    let result = load_highscores_and_lines();
+    if let Some((highscores, lines)) = result {
+        println!("{}, {}", highscores[0], lines[0]);
+    }
+
     let window = video_subsystem
         .window("rust-sdl2 demo: Video", 800, 600)
         .position_centered()
@@ -65,8 +72,6 @@ fn main() {
     let image_texture = texture_creator
         .load_texture("assets/cursor.png")
         .expect("Couldn't load image");
-
-    let timer = SystemTime::now();
 
     let mut event_pump = sdl_context
         .event_pump()
@@ -95,4 +100,57 @@ fn main() {
             sleep(Duration::new(0, 1_000_000_000u32 / 60));
         }
     }
+}
+
+fn slice_to_string(slice: &[u32]) -> String {
+    slice
+        .iter()
+        .map(|highscore| highscore.to_string())
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+fn save_highscores_and_lines(highscores: &[u32], number_of_lines: &[u32]) -> bool {
+    let s_highscores = slice_to_string(highscores);
+    let s_number_of_lines = slice_to_string(number_of_lines);
+    write_into_file(
+        &format!("{}\n{}\n", s_highscores, s_number_of_lines),
+        "scores.txt",
+    )
+    .is_ok()
+}
+
+fn line_to_slice(line: &str) -> Vec<u32> {
+    line.split(" ")
+        .filter_map(|nb| nb.parse::<u32>().ok())
+        .collect()
+}
+
+fn load_highscores_and_lines() -> Option<(Vec<u32>, Vec<u32>)> {
+    if let Ok(content) = read_from_file("scores.txt") {
+        let mut lines = content
+            .splitn(2, "\n")
+            .map(line_to_slice)
+            .collect::<Vec<_>>();
+        if lines.len() == 2 {
+            let (number_lines, highscores) = (lines.pop().unwrap(), lines.pop().unwrap());
+            Some((highscores, number_lines))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+fn write_into_file(content: &str, file_name: &str) -> io::Result<()> {
+    let mut f = File::create(file_name)?;
+    f.write_all(content.as_bytes())
+}
+
+fn read_from_file(file_name: &str) -> io::Result<String> {
+    let mut f = File::open(file_name)?;
+    let mut content = String::new();
+    f.read_to_string(&mut content)?;
+    Ok(content)
 }
